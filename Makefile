@@ -1,5 +1,5 @@
 all:
-	erlc -o ebin src/amp.erl
+	erlc +debug_info -o ebin src/amp.erl
 
 clean:
 	rm -f src/*~ ebin/*.beam *~
