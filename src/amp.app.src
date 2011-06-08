@@ -1,0 +1,6 @@
+{application,amp,
+ [{description,"Twisted AMP protocol codec and server"},
+  {vsn,"0"},
+  {modules,[]},
+  {registered, []},
+  {applications,[kernel,stdlib]}]}.
