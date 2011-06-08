@@ -1,5 +1,16 @@
-all:
-	erlc +debug_info -o ebin src/amp.erl
+REBAR ?= $(shell which rebar 2>/dev/null || which ./rebar)
+EBAR_FLAGS ?=
+
+all: compile
+
+compile:
+	$(REBAR) compile $(REBAR_FLAGS)
+
+test: compile
+	$(REBAR) eunit $(REBAR_FLAGS)
 
 clean:
-	rm -f src/*~ ebin/*.beam *~
+	$(REBAR) clean $(REBAR_FLAGS)
+
+dialyzer:
+	$(REBAR) dialyze $(REBAR_FLAGS)
