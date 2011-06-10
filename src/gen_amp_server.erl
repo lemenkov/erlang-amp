@@ -107,7 +107,7 @@ handle_cast({accepted, Socket}, State = #state{clients=Clients}) ->
 	spawn_link(node(), ?MODULE, read_loop, [self(), Socket]),
 	{noreply, State#state{clients = Clients ++ [{Socket, <<>>}]}};
 
-handle_cast({read, Socket, B}, State = #state{mod=Module, modstate=ModState, clients=Clients}) ->
+handle_cast({read, Socket, B}, State = #state{mod=Module, clients=Clients}) ->
 	PrevBytes = proplists:get_value(Socket, Clients),
 	{amp, DecodedKVs, Rest} = amp:parse_amp(<<PrevBytes/binary, B/binary>>),
 	lists:foreach(fun (X) -> process_amp(Module, X, Socket) end, DecodedKVs),
