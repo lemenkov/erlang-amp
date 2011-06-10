@@ -30,6 +30,7 @@
 
 -export([make_cmd/2]).
 -export([make_reply/2]).
+-export([make_error/2]).
 -export([parse_amp/1]).
 -export([get_type/1]).
 -export([get_command/1]).
@@ -80,6 +81,11 @@ make_reply(Tag, Args) when is_list (Args), is_integer(Tag) ->
 make_reply(Tag, Args) when is_list (Args), is_binary(Tag) ->
 	TagSize = size(Tag),
 	make_amp_raw(Args, <<7:16, "_answer", TagSize:16, Tag/binary>>).
+make_error(Tag, Args) when is_list (Args), is_integer(Tag) ->
+	make_error(<<Tag:32>>, Args);
+make_error(Tag, Args) when is_list (Args), is_binary(Tag) ->
+	TagSize = size(Tag),
+	make_amp_raw(Args, <<6:16, "_error", TagSize:16, Tag/binary>>).
 make_cmd(Command, Args) when is_list (Args) ->
 	AmpTag = make_tag(),
 	{SizeCommand, BinCommand} = to_binary(Command),
