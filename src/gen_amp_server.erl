@@ -169,8 +169,12 @@ process_amp(Mod, Amp, Socket) ->
 	case amp:get_type(Amp) of
 		?ASK ->
 			{Tag, Cmd, Opts} = amp:get_command(Amp),
-			{reply, Reply} = Mod:Cmd(proplists:delete(eof, Opts)),
-			gen_tcp:send(Socket, amp:make_reply(Tag, Reply));
+			case Mod:Cmd(proplists:delete(eof, Opts)) of
+				{reply, noreply} ->
+					ok;
+				{reply, Reply} ->
+					gen_tcp:send(Socket, amp:make_reply(Tag, Reply))
+			end;
 		?ERROR ->
 			ok;
 		?ANSWER ->
