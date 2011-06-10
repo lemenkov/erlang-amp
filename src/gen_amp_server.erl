@@ -135,6 +135,7 @@ handle_info(Info, State = #state{mod=Module, modstate=ModState}) ->
 
 
 terminate(Reason, State = #state{mod=Mod, modstate=ModState, sock=ListenSocket}) ->
+	error_logger:warning_msg("Terminated ~p due to ~p~n", [self(), Reason]),
 %	Mod:terminate(Reason, ModState),
 	ok = gen_tcp:close(ListenSocket),
 	ok.
@@ -171,13 +172,16 @@ process_amp(Mod, Amp, Socket) ->
 			{Tag, Cmd, Opts} = amp:get_command(Amp),
 			try Mod:Cmd(proplists:delete(eof, Opts)) of
 				{reply, noreply} ->
+					error_logger:warning_msg("Got answer for ~p but noreply was thrown~n", [Amp]),
 					ok;
 				{reply, Reply} ->
 					gen_tcp:send(Socket, amp:make_reply(Tag, Reply));
 				{error, Error} ->
+					error_logger:error_msg("Got error error:~p for ~p~n", [Error, Amp]),
 					gen_tcp:send(Socket, amp:make_error(Tag, Error))
 			catch
 				ExceptionClass:ExceptionPattern ->
+					error_logger:error_msg("Got exception ~p:~p for ~p~n", [ExceptionClass, ExceptionPattern, Amp]),
 					gen_tcp:send(Socket, amp:make_error(Tag, [{exception, list_to_binary(atom_to_list(ExceptionClass))}]))
 			end;
 		?ERROR ->
