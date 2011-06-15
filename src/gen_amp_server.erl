@@ -163,6 +163,7 @@ read_loop(Server, Socket) ->
 			read_loop(Server, Socket);
 		{error, Error} ->
 			error_logger:warning_msg("Socket ~p ~p~n", [Socket, Error]),
+			gen_tcp:close(Socket),
 			gen_server:cast(Server, {closed, Socket})
 	end.
 
@@ -173,7 +174,7 @@ process_amp(Mod, Amp, Socket) ->
 			try Mod:Cmd(proplists:delete(eof, Opts)) of
 				{reply, noreply} ->
 					error_logger:warning_msg("Got answer for ~p but noreply was thrown~n", [Amp]),
-					ok;
+					gen_tcp:close(Socket);
 				{reply, Reply} ->
 					gen_tcp:send(Socket, amp:make_reply(Tag, Reply));
 				{error, Error} ->
