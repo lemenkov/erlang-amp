@@ -173,10 +173,15 @@ process_amp(Mod, Amp, Socket) ->
 			{Tag, Cmd, Opts} = amp:get_command(Amp),
 			try Mod:Cmd(proplists:delete(eof, Opts)) of
 				{reply, noreply} ->
-					error_logger:warning_msg("Got answer for ~p but noreply was thrown~n", [Amp]),
+					error_logger:warning_msg("Got answer for ~p but noreply was thrown~n", [Amp]);
+				{reply_and_close, noreply} ->
+					error_logger:warning_msg("Got answer for ~p but noreply_and_close was thrown~n", [Amp]),
 					gen_tcp:close(Socket);
 				{reply, Reply} ->
 					gen_tcp:send(Socket, amp:make_reply(Tag, Reply));
+				{reply_and_close, Reply} ->
+					gen_tcp:send(Socket, amp:make_reply(Tag, Reply)),
+					gen_tcp:close(Socket);
 				{error, Error} ->
 					error_logger:error_msg("Got error error:~p for ~p~n", [Error, Amp]),
 					gen_tcp:send(Socket, amp:make_error(Tag, Error))
