@@ -36,11 +36,7 @@
 
 -export([behaviour_info/1]).
 
--export([start/3]).
--export([start_link/3]).
-
--export([accept_loop/2]).
--export([read_loop/2]).
+-export([start_link/1]).
 
 -include("../include/amp.hrl").
 
@@ -62,32 +58,23 @@ behaviour_info(_) ->
 -record(state, {
 	mod,
 	modstate,
-	sock,
-	apid,
 	clients = []
 }).
 
 %%%%%%%%%%%%%%%%%%
 
-start(Module, Ip, Port) ->
-        gen_server:start(?MODULE, [Module, Ip, Port], []).
-
-start_link(Module, Ip, Port) ->
-        gen_server:start_link(?MODULE, [Module, Ip, Port], []).
+start_link(Module) ->
+        gen_server:start_link({local, ?MODULE}, ?MODULE, [Module], []).
 
 %%%%%%%%%%%%%%%%%%
 
-init([Module, Ip, Port]) ->
+init([Module]) ->
 	process_flag(trap_exit, true),
-	{ok, ListenSocket} = gen_tcp:listen(Port, [{ip, Ip}, binary, {reuseaddr, true}, {active, false}]),
-	AcceptorPid = spawn_link(node(), ?MODULE, accept_loop, [self(), ListenSocket]),
 	{ok, ModState} = Module:init(hello),
 	{ok, #state{
 
 			mod=Module,
-			modstate=ModState,
-			sock=ListenSocket,
-			apid = AcceptorPid
+			modstate=ModState
 		}
 	}.
 
@@ -103,18 +90,19 @@ handle_call(Request, From, State = #state{mod=Module, modstate=ModState}) ->
 			{stop, Reason, Reply, State#state{modstate=NewModState}}
 	 end.
 
-handle_cast({accepted, Socket}, State = #state{clients=Clients}) ->
-	spawn_link(node(), ?MODULE, read_loop, [self(), Socket]),
-	{noreply, State#state{clients = Clients ++ [{Socket, <<>>}]}};
+handle_cast({accepted, Client}, State = #state{clients=Clients}) ->
+	{ok, {Ip, Port}} = inet:peername(Client),
+	error_logger:warning_msg("Socket ~p accepted at ~s:~p by ~p~n", [Client, inet_parse:ntoa(Ip), Port, self()]),
+	{noreply, State#state{clients = Clients ++ [{Client, <<>>}]}};
 
-handle_cast({read, Socket, B}, State = #state{mod=Module, clients=Clients}) ->
-	PrevBytes = proplists:get_value(Socket, Clients),
+handle_cast({read, Client, B}, State = #state{mod=Module, clients=Clients}) ->
+	PrevBytes = proplists:get_value(Client, Clients),
 	{amp, DecodedKVs, Rest} = amp:parse_amp(<<PrevBytes/binary, B/binary>>),
-	lists:foreach(fun (X) -> process_amp(Module, X, Socket) end, DecodedKVs),
-	{noreply, State#state{clients = proplists:delete(Socket, Clients) ++ [{Socket, Rest}]}};
+	lists:foreach(fun (X) -> process_amp(Module, X, Client) end, DecodedKVs),
+	{noreply, State#state{clients = proplists:delete(Client, Clients) ++ [{Client, Rest}]}};
 
-handle_cast({closed, Socket}, State = #state{clients=Clients}) ->
-	{noreply, State#state{clients = proplists:delete(Socket, Clients)}};
+handle_cast({closed, Client}, State = #state{clients=Clients}) ->
+	{noreply, State#state{clients = proplists:delete(Client, Clients)}};
 
 handle_cast(Request, State = #state{mod=Module, modstate=ModState}) ->
 	case Module:handle_cast(Request, ModState) of
@@ -124,8 +112,13 @@ handle_cast(Request, State = #state{mod=Module, modstate=ModState}) ->
 			{stop, Reason, State#state{modstate=NewModState}}
 	end.
 
+handle_info({tcp, Socket, RawData}, State) ->
+	inet:setopts(Socket, [{active, once}, {packet, raw}, binary]),
+	gen_server:cast(gen_amp_server, {read, Socket, RawData}),
+	{noreply, State};
 
 handle_info(Info, State = #state{mod=Module, modstate=ModState}) ->
+	io:format("INFO ~p~n", [Info]),
 	case Module:handle_info(Info, ModState) of
 		{noreply, NewModState} ->
 			{noreply, State#state{modstate=NewModState}};
@@ -133,39 +126,16 @@ handle_info(Info, State = #state{mod=Module, modstate=ModState}) ->
 			{stop, Reason, State#state{modstate=NewModState}}
 	end.
 
-
-terminate(Reason, State = #state{mod=Mod, modstate=ModState, sock=ListenSocket}) ->
+terminate(Reason, State = #state{mod=Mod, modstate=ModState}) ->
 	error_logger:warning_msg("Terminated ~p due to ~p~n", [self(), Reason]),
+	lists:foreatch(gen_tcp:close/1, State#state.Clients),
 %	Mod:terminate(Reason, ModState),
-	ok = gen_tcp:close(ListenSocket),
 	ok.
 
 code_change(_OldVsn, State, _Extra) ->
 	{ok, State}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-accept_loop(Server, ListenSocket) ->
-	case gen_tcp:accept(ListenSocket) of
-		{ok, Socket} ->
-			{ok, {Ip, Port}} = inet:peername(Socket),
-			error_logger:warning_msg("Socket ~p accepted at ~s:~p by ~p~n", [Socket, inet_parse:ntoa(Ip), Port, self()]),
-			gen_server:cast(Server, {accepted, Socket}),
-			accept_loop(Server, ListenSocket);
-		{error, Error} ->
-			error_logger:warning_msg("ListenSocket ~p ~p~n", [ListenSocket, Error])
-	end.
-
-read_loop(Server, Socket) ->
-	case gen_tcp:recv(Socket, 0) of
-		{ok, B} ->
-			gen_server:cast(Server, {read, Socket, B}),
-			read_loop(Server, Socket);
-		{error, Error} ->
-			error_logger:warning_msg("Socket ~p ~p~n", [Socket, Error]),
-			gen_tcp:close(Socket),
-			gen_server:cast(Server, {closed, Socket})
-	end.
 
 process_amp(Mod, Amp, Socket) ->
 	case amp:get_type(Amp) of
