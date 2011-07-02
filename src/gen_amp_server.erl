@@ -161,8 +161,10 @@ process_amp(Mod, Amp, Socket) ->
 					gen_tcp:send(Socket, amp:make_error(Tag, [{exception, list_to_binary(atom_to_list(ExceptionClass))}]))
 			end;
 		?ERROR ->
+			% TODO what should we do in case then client returnes an error message?
 			ok;
 		?ANSWER ->
+			% TODO what should we do in case then client answers?
 			ok
 	end.
 
