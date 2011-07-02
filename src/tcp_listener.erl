@@ -43,7 +43,6 @@ start_link(Ip, Port) when is_integer(Port) ->
 	gen_server:start_link(?MODULE, [Ip, Port], []).
 
 init([Ip, Port]) ->
-	process_flag(trap_exit, true),
 %	Opts = [{ip, Ip}, binary, {packet, 2}, {reuseaddr, true}, {keepalive, true}, {backlog, 30}, {active, false}],
 	Opts = [{ip, Ip}, binary, {packet, raw}, {reuseaddr, true}, {keepalive, true}, {backlog, 30}, {active, false}],
 	case gen_tcp:listen(Port, Opts) of
