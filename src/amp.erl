@@ -73,7 +73,7 @@ get_type([{?ANSWER, AmpTag} , {?COMMAND, CmdName} | RestPropList] = Amp) ->
 	?ANSWER.
 
 get_command([{?ASK, AmpTag} , {?COMMAND, CmdName} | RestPropList] = Amp) ->
-	% This command name should already exists
+	% This command name MUST already exists
 	{AmpTag, list_to_existing_atom(binary_to_list(CmdName)), RestPropList}.
 
 make_reply(Tag, Args) when is_list (Args), is_integer(Tag) ->
