@@ -34,12 +34,12 @@ terminate(_Reason, _State) ->
 code_change(_OldVsn, State, _Extra) ->
 	{ok, State}.
 
-'TestAmpRequest'(Params) when is_list(Params) ->
+'TestAmpRequest'(Params, State) when is_list(Params) ->
 	error_logger:warning_msg("Params: ~p~n", [Params]),
 
 	% Do something useful
 
-	{reply_and_close, noreply}.
+	{noreply_and_close, State}.
 
 %% Tests
 -ifdef(TEST).
