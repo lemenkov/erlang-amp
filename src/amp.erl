@@ -61,18 +61,18 @@ parse_amp_single(<<LengthK:16, Data/binary>> = Data0, DecodedKVs) ->
 		error
 	end;
 
-parse_amp_single(Rest, DecodedKVs) ->
+parse_amp_single(Rest, _DecodedKVs) ->
 	error_logger:warning_msg("bad_amp_raw: ~p~n", [Rest]),
 	error.
 
-get_type([{?ASK, AmpTag} , {?COMMAND, CmdName} | RestPropList] = Amp) ->
+get_type([{?ASK, _AmpTag} , {?COMMAND, _CmdName} | _RestPropList]) ->
 	?ASK;
-get_type([{?ERROR, AmpTag} , {?COMMAND, CmdName} | RestPropList] = Amp) ->
+get_type([{?ERROR, _AmpTag} , {?COMMAND, _CmdName} | _RestPropList]) ->
 	?ERROR;
-get_type([{?ANSWER, AmpTag} , {?COMMAND, CmdName} | RestPropList] = Amp) ->
+get_type([{?ANSWER, _AmpTag} , {?COMMAND, _CmdName} | _RestPropList]) ->
 	?ANSWER.
 
-get_command([{?ASK, AmpTag} , {?COMMAND, CmdName} | RestPropList] = Amp) ->
+get_command([{?ASK, AmpTag} , {?COMMAND, CmdName} | RestPropList]) ->
 	% This command name MUST already exists
 	{AmpTag, list_to_existing_atom(binary_to_list(CmdName)), RestPropList}.
 
