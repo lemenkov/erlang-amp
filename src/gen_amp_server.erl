@@ -95,12 +95,6 @@ handle_cast({accepted, Client}, State = #state{clients=Clients}) ->
 	error_logger:warning_msg("Socket ~p accepted at ~s:~p by ~p~n", [Client, inet_parse:ntoa(Ip), Port, self()]),
 	{noreply, State#state{clients = Clients ++ [{Client, <<>>}]}};
 
-handle_cast({read, Client, B}, State = #state{mod=Module, clients=Clients}) ->
-	PrevBytes = proplists:get_value(Client, Clients),
-	{amp, DecodedKVs, Rest} = amp:parse_amp(<<PrevBytes/binary, B/binary>>),
-	lists:foreach(fun (X) -> process_amp(Module, X, Client) end, DecodedKVs),
-	{noreply, State#state{clients = proplists:delete(Client, Clients) ++ [{Client, Rest}]}};
-
 handle_cast(Request, State = #state{mod=Module, modstate=ModState}) ->
 	case Module:handle_cast(Request, ModState) of
 		{noreply, NewModState} ->
@@ -109,10 +103,12 @@ handle_cast(Request, State = #state{mod=Module, modstate=ModState}) ->
 			{stop, Reason, State#state{modstate=NewModState}}
 	end.
 
-handle_info({tcp, Socket, RawData}, State) ->
-	inet:setopts(Socket, [{active, once}, {packet, raw}, binary]),
-	gen_server:cast(gen_amp_server, {read, Socket, RawData}),
-	{noreply, State};
+handle_info({tcp, Client, B}, State = #state{mod=Module, clients=Clients}) ->
+	inet:setopts(Client, [{active, once}, {packet, raw}, binary]),
+	PrevBytes = proplists:get_value(Client, Clients),
+	{amp, DecodedKVs, Rest} = amp:parse_amp(<<PrevBytes/binary, B/binary>>),
+	lists:foreach(fun (X) -> process_amp(Module, X, Client) end, DecodedKVs),
+	{noreply, State#state{clients = proplists:delete(Client, Clients) ++ [{Client, Rest}]}};
 
 handle_info({tcp_closed, Client}, State = #state{clients=Clients}) ->
 	gen_tcp:close(Client),
