@@ -101,9 +101,6 @@ handle_cast({read, Client, B}, State = #state{mod=Module, clients=Clients}) ->
 	lists:foreach(fun (X) -> process_amp(Module, X, Client) end, DecodedKVs),
 	{noreply, State#state{clients = proplists:delete(Client, Clients) ++ [{Client, Rest}]}};
 
-handle_cast({closed, Client}, State = #state{clients=Clients}) ->
-	{noreply, State#state{clients = proplists:delete(Client, Clients)}};
-
 handle_cast(Request, State = #state{mod=Module, modstate=ModState}) ->
 	case Module:handle_cast(Request, ModState) of
 		{noreply, NewModState} ->
