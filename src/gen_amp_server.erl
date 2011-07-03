@@ -117,6 +117,10 @@ handle_info({tcp, Socket, RawData}, State) ->
 	gen_server:cast(gen_amp_server, {read, Socket, RawData}),
 	{noreply, State};
 
+handle_info({tcp_closed, Client}, State = #state{clients=Clients}) ->
+	gen_tcp:close(Client),
+	{noreply, State#state{clients = proplists:delete(Client, Clients)}};
+
 handle_info(Info, State = #state{mod=Module, modstate=ModState}) ->
 	io:format("INFO ~p~n", [Info]),
 	case Module:handle_info(Info, ModState) of
