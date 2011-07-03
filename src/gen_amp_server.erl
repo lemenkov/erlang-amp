@@ -128,7 +128,7 @@ handle_info(Info, State = #state{mod=Module, modstate=ModState}) ->
 
 terminate(Reason, State = #state{clients=Clients, mod=Mod, modstate=ModState}) ->
 	error_logger:warning_msg("Terminated ~p due to ~p~n", [self(), Reason]),
-	lists:foreach(fun gen_tcp:close/1, Clients),
+	lists:foreach(fun ({C, _B}) -> gen_tcp:close(C) end, Clients),
 %	Mod:terminate(Reason, ModState),
 	ok.
 
