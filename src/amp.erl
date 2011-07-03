@@ -57,7 +57,7 @@ parse_amp_single(<<LengthK:16, Data/binary>> = Data0, DecodedKVs) ->
 		<<Val:LengthV/binary, R2/binary>> = R1,
 		parse_amp_single(R2, DecodedKVs ++ [{list_to_atom(binary_to_list(Key)), Val}])
 	catch _:_ ->
-		error_logger:error_msg("bad_amp_raw: ~p, ~p~n", [Data0]),
+		error_logger:error_msg("bad_amp_raw: ~p~n", [Data0]),
 		error
 	end;
 
