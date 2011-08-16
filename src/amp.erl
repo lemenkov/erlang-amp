@@ -117,14 +117,3 @@ to_binary(Value) when is_float (Value) ->
 	to_binary(list_to_binary(float_to_list(Value)));
 to_binary(Value) when is_binary (Value) ->
 	{size(Value), Value}.
-
-%% Tests
--ifdef(TEST).
--include_lib("eunit/include/eunit.hrl").
-
-%amp_test() ->
-%	AmpBin = amp:make_amp("hello", ["foo", "bar"]),
-%	AmpParsed = amp:parse_amp(AmpBin),
-%	?assertEqual(AmpParsed, amp:parse_amp(AmpBin)).
-
--endif.
