@@ -54,9 +54,17 @@ parse_amp_single(<<0,0, Rest/binary>>, DecodedKVs) ->
 	{amp, DecodedKVs, Rest};
 
 parse_amp_single(Data, DecodedKVs) when size(Data) > 1 ->
-	{Key, Data0} = from_binary(Data),
-	{Val, Data1} = from_binary(Data0),
-	parse_amp_single(Data1, DecodedKVs ++ [{list_to_existing_atom(binary_to_list(Key)), Val}]).
+	{BinKey, Data0} = from_binary(Data),
+	{BinVal, Data1} = from_binary(Data0),
+	{Key, Val} = case BinKey of
+		<<"_command">> ->
+			% This key name and command name MUST already exists
+			{list_to_existing_atom(binary_to_list(BinKey)), list_to_existing_atom(binary_to_list(BinVal))};
+		_ ->
+			% This key name MUST already exists
+			{list_to_existing_atom(binary_to_list(BinKey)), BinVal}
+	end,
+	parse_amp_single(Data1, DecodedKVs ++ [{Key, Val}]).
 
 get_type([{?ASK, _AmpTag} , {?COMMAND, _CmdName} | _RestPropList]) ->
 	?ASK;
