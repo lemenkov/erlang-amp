@@ -40,31 +40,23 @@ decode(Binary) when is_binary(Binary) ->
 	decode(Binary, []).
 
 decode(Binary, DecodedAmps) ->
-	case parse_amp_single(Binary, []) of
+	try parse_amp_single(Binary, []) of
 		{amp, DecodedAmp, <<>>} ->
 			{amp, DecodedAmps ++ [DecodedAmp], <<>>};
 		{amp, DecodedAmp, Rest} ->
-			decode(Rest, DecodedAmps ++ [DecodedAmp]);
-		error ->
-			{amp, DecodedAmps, Binary}
+			decode(Rest, DecodedAmps ++ [DecodedAmp])
+	catch _:_ ->
+		error_logger:warning_msg("bad_amp_raw: ~p~n", [Binary]),
+		{amp, DecodedAmps, Binary}
 	end.
 
 parse_amp_single(<<0,0, Rest/binary>>, DecodedKVs) ->
 	{amp, DecodedKVs, Rest};
 
 parse_amp_single(Data, DecodedKVs) when size(Data) > 1 ->
-	try
-		{Key, Data0} = from_binary(Data),
-		{Val, Data1} = from_binary(Data0),
-		parse_amp_single(Data1, DecodedKVs ++ [{list_to_existing_atom(binary_to_list(Key)), Val}])
-	catch _:_ ->
-		error_logger:error_msg("bad_amp_raw: ~p~n", [Data]),
-		error
-	end;
-
-parse_amp_single(Rest, _DecodedKVs) ->
-	error_logger:warning_msg("bad_amp_raw: ~p~n", [Rest]),
-	error.
+	{Key, Data0} = from_binary(Data),
+	{Val, Data1} = from_binary(Data0),
+	parse_amp_single(Data1, DecodedKVs ++ [{list_to_existing_atom(binary_to_list(Key)), Val}]).
 
 get_type([{?ASK, _AmpTag} , {?COMMAND, _CmdName} | _RestPropList]) ->
 	?ASK;
