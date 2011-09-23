@@ -101,6 +101,10 @@ make_amp_raw([Key, Value | Rest], BinaryAmp) when is_binary(BinaryAmp) ->
 	{BinaryValueSize, BinaryValue} = to_binary(Value),
 	make_amp_raw(Rest, <<BinaryAmp/binary, BinaryKeySize:16, BinaryKey/binary, BinaryValueSize:16, BinaryValue/binary>>).
 
+%%
+%% Private functions
+%%
+
 make_tag() ->
 	{A1,A2,A3} = now(),
 	random:seed(A1, A2, A3),
