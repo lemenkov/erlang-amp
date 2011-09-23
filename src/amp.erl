@@ -89,8 +89,8 @@ make_error(Tag, Args) when is_list (Args), is_binary(Tag) ->
 	make_amp_raw(Args, <<6:16, "_error", TagSize:16, Tag/binary>>).
 make_cmd(Command, Args) when is_list (Args) ->
 	AmpTag = make_tag(),
-	{SizeCommand, BinCommand} = to_binary(Command),
-	make_amp_raw(Args, <<4:16, "_ask", 4:16, AmpTag:32, 8:16, "_command", SizeCommand:16, BinCommand/binary>>).
+	BinCommand = to_binary(Command),
+	make_amp_raw(Args, <<4:16, "_ask", 4:16, AmpTag:32, 8:16, "_command", BinCommand/binary>>).
 
 make_amp_raw([], BinaryAmp) when is_binary(BinaryAmp) ->
 	<<BinaryAmp/binary, 0, 0>>;
@@ -98,9 +98,9 @@ make_amp_raw([], BinaryAmp) when is_binary(BinaryAmp) ->
 make_amp_raw([{Key, Value} | Rest], BinaryAmp) when is_binary(BinaryAmp) ->
 	make_amp_raw([Key, Value | Rest], BinaryAmp);
 make_amp_raw([Key, Value | Rest], BinaryAmp) when is_binary(BinaryAmp) ->
-	{BinaryKeySize, BinaryKey} = to_binary(Key),
-	{BinaryValueSize, BinaryValue} = to_binary(Value),
-	make_amp_raw(Rest, <<BinaryAmp/binary, BinaryKeySize:16, BinaryKey/binary, BinaryValueSize:16, BinaryValue/binary>>).
+	BinaryKey = to_binary(Key),
+	BinaryVal = to_binary(Value),
+	make_amp_raw(Rest, <<BinaryAmp/binary, BinaryKey/binary, BinaryVal/binary>>).
 
 %%
 %% Private functions
@@ -121,4 +121,5 @@ to_binary(Value) when is_integer (Value) ->
 to_binary(Value) when is_float (Value) ->
 	to_binary(list_to_binary(float_to_list(Value)));
 to_binary(Value) when is_binary (Value) ->
-	{size(Value), Value}.
+	Size = size(Value),
+	<<Size:16, Value/binary>>.
