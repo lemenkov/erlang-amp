@@ -50,7 +50,7 @@ decode(Binary, DecodedAmps) ->
 	end.
 
 parse_amp_single(<<0,0, Rest/binary>>, DecodedKVs) ->
-	{amp, DecodedKVs ++ [{eof}], Rest};
+	{amp, DecodedKVs, Rest};
 
 parse_amp_single(<<LengthK:16, Data/binary>> = Data0, DecodedKVs) ->
 	try

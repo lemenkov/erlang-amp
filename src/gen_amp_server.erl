@@ -99,7 +99,7 @@ handle_cast({amp, Amp, Client}, State = #state{clients=Clients, mod=Module, mods
 	case amp:get_type(Amp) of
 		?ASK ->
 			{Tag, Cmd, Opts} = amp:get_command(Amp),
-			try Module:Cmd(proplists:delete(eof, Opts), ModState) of
+			try Module:Cmd(Opts, ModState) of
 				{noreply, NewState}->
 					error_logger:warning_msg("Got answer for ~p but noreply was thrown~n", [Amp]),
 					{noreply, State#state{modstate=NewState}};
