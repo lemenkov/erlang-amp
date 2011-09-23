@@ -28,11 +28,9 @@
 
 -include("../include/amp.hrl").
 
+-export([encode/1]).
 -export([decode/1]).
 
--export([make_cmd/2]).
--export([make_reply/2]).
--export([make_error/2]).
 -export([get_type/1]).
 
 decode(Binary) when is_binary(Binary) ->
@@ -51,7 +49,6 @@ decode(Binary, DecodedAmps) ->
 
 parse_amp_single(<<0,0, Rest/binary>>, DecodedKVs) ->
 	{amp, DecodedKVs, Rest};
-
 parse_amp_single(Data, DecodedKVs) when size(Data) > 1 ->
 	{BinKey, Data0} = from_binary(Data),
 	{BinVal, Data1} = from_binary(Data0),
@@ -72,30 +69,16 @@ get_type([{?ERROR, _AmpTag} , {?COMMAND, _CmdName} | _RestPropList]) ->
 get_type([{?ANSWER, _AmpTag} , {?COMMAND, _CmdName} | _RestPropList]) ->
 	?ANSWER.
 
-make_reply(Tag, Args) when is_list (Args), is_integer(Tag) ->
-	make_reply(<<Tag:32>>, Args);
-make_reply(Tag, Args) when is_list (Args), is_binary(Tag) ->
-	TagSize = size(Tag),
-	make_amp_raw(Args, <<7:16, "_answer", TagSize:16, Tag/binary>>).
-make_error(Tag, Args) when is_list (Args), is_integer(Tag) ->
-	make_error(<<Tag:32>>, Args);
-make_error(Tag, Args) when is_list (Args), is_binary(Tag) ->
-	TagSize = size(Tag),
-	make_amp_raw(Args, <<6:16, "_error", TagSize:16, Tag/binary>>).
-make_cmd(Command, Args) when is_list (Args) ->
-	AmpTag = make_tag(),
-	BinCommand = to_binary(Command),
-	make_amp_raw(Args, <<4:16, "_ask", 4:16, AmpTag:32, 8:16, "_command", BinCommand/binary>>).
+encode(Proplist) when is_list(Proplist) ->
+	encode(Proplist, <<>>).
 
-make_amp_raw([], BinaryAmp) when is_binary(BinaryAmp) ->
+encode([], BinaryAmp) ->
 	<<BinaryAmp/binary, 0, 0>>;
 
-make_amp_raw([{Key, Value} | Rest], BinaryAmp) when is_binary(BinaryAmp) ->
-	make_amp_raw([Key, Value | Rest], BinaryAmp);
-make_amp_raw([Key, Value | Rest], BinaryAmp) when is_binary(BinaryAmp) ->
+encode([{Key, Value} | Rest], BinaryAmp) ->
 	BinaryKey = to_binary(Key),
 	BinaryVal = to_binary(Value),
-	make_amp_raw(Rest, <<BinaryAmp/binary, BinaryKey/binary, BinaryVal/binary>>).
+	encode(Rest, <<BinaryAmp/binary, BinaryKey/binary, BinaryVal/binary>>).
 
 %%
 %% Private functions

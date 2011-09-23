@@ -111,10 +111,10 @@ handle_cast({amp, Amp, Client}, State = #state{clients=Clients, mod=Module, mods
 					end,
 					{noreply, State#state{clients = proplists:delete(Client, Clients), modstate=NewState}};
 				{reply, Reply, NewState} ->
-					gen_tcp:send(Client, amp:make_reply(Tag, Reply)),
+					gen_tcp:send(Client, amp:encode([{'_answer', Tag}] ++ Reply)),
 					{noreply, State#state{modstate=NewState}};
 				{reply_and_close, Reply, NewState} ->
-					gen_tcp:send(Client, amp:make_reply(Tag, Reply)),
+					gen_tcp:send(Client, amp:encode([{'_answer', Tag}] ++ Reply)),
 					case proplists:is_defined(Client, Clients) of
 						true -> gen_tcp:close(Client);
 						_ -> ok
@@ -122,12 +122,12 @@ handle_cast({amp, Amp, Client}, State = #state{clients=Clients, mod=Module, mods
 					{noreply, State#state{clients = proplists:delete(Client, Clients), modstate=NewState}};
 				{error, Error, NewState} ->
 					error_logger:error_msg("Got error:~p for ~p~n", [Error, Amp]),
-					gen_tcp:send(Client, amp:make_error(Tag, Error)),
+					gen_tcp:send(Client, amp:encode([{'_error', Tag}] ++ Error)),
 					{noreply, State#state{modstate=NewState}}
 			catch
 				ExceptionClass:ExceptionPattern ->
 					error_logger:error_msg("Got exception ~p:~p for ~p~n", [ExceptionClass, ExceptionPattern, Amp]),
-					gen_tcp:send(Client, amp:make_error(Tag, [{exception, list_to_binary(atom_to_list(ExceptionClass))}])),
+					gen_tcp:send(Client, amp:encode([{'_error', Tag}] ++ [{exception, list_to_binary(atom_to_list(ExceptionClass))}])),
 					% TODO should we close socket here?
 					{noreply, State}
 			end;
