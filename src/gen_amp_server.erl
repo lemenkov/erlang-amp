@@ -98,7 +98,7 @@ handle_cast({accepted, Client}, State = #state{clients=Clients}) ->
 handle_cast({amp, Amp, Client}, State = #state{clients=Clients, mod=Module, modstate=ModState}) ->
 	case amp:get_type(Amp) of
 		?ASK ->
-			{Tag, Cmd, Opts} = amp:get_command(Amp),
+			[{?ASK, Tag} , {?COMMAND, Cmd} | Opts] = Amp,
 			try Module:Cmd(Opts, ModState) of
 				{noreply, NewState}->
 					error_logger:warning_msg("Got answer for ~p but noreply was thrown~n", [Amp]),

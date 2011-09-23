@@ -34,7 +34,6 @@
 -export([make_reply/2]).
 -export([make_error/2]).
 -export([get_type/1]).
--export([get_command/1]).
 
 decode(Binary) when is_binary(Binary) ->
 	decode(Binary, []).
@@ -72,10 +71,6 @@ get_type([{?ERROR, _AmpTag} , {?COMMAND, _CmdName} | _RestPropList]) ->
 	?ERROR;
 get_type([{?ANSWER, _AmpTag} , {?COMMAND, _CmdName} | _RestPropList]) ->
 	?ANSWER.
-
-get_command([{?ASK, AmpTag} , {?COMMAND, CmdName} | RestPropList]) ->
-	% This command name MUST already exists
-	{AmpTag, list_to_existing_atom(binary_to_list(CmdName)), RestPropList}.
 
 make_reply(Tag, Args) when is_list (Args), is_integer(Tag) ->
 	make_reply(<<Tag:32>>, Args);
