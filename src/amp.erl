@@ -52,13 +52,13 @@ decode(Binary, DecodedAmps) ->
 parse_amp_single(<<0,0, Rest/binary>>, DecodedKVs) ->
 	{amp, DecodedKVs, Rest};
 
-parse_amp_single(<<LengthK:16, Data/binary>> = Data0, DecodedKVs) ->
+parse_amp_single(Data, DecodedKVs) when size(Data) > 1 ->
 	try
-		<<Key:LengthK/binary, LengthV:16, R1/binary>> = Data,
-		<<Val:LengthV/binary, R2/binary>> = R1,
-		parse_amp_single(R2, DecodedKVs ++ [{list_to_atom(binary_to_list(Key)), Val}])
+		{Key, Data0} = from_binary(Data),
+		{Val, Data1} = from_binary(Data0),
+		parse_amp_single(Data1, DecodedKVs ++ [{list_to_atom(binary_to_list(Key)), Val}])
 	catch _:_ ->
-		error_logger:error_msg("bad_amp_raw: ~p~n", [Data0]),
+		error_logger:error_msg("bad_amp_raw: ~p~n", [Data]),
 		error
 	end;
 
@@ -123,3 +123,7 @@ to_binary(Value) when is_float (Value) ->
 to_binary(Value) when is_binary (Value) ->
 	Size = size(Value),
 	<<Size:16, Value/binary>>.
+
+from_binary(<<Length:16, Data0/binary>> = Data) when size(Data) > 1 ->
+	<<Elem:Length/binary, Data1/binary>> = Data0,
+	{Elem, Data1}.
