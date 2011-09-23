@@ -56,7 +56,7 @@ parse_amp_single(Data, DecodedKVs) when size(Data) > 1 ->
 	try
 		{Key, Data0} = from_binary(Data),
 		{Val, Data1} = from_binary(Data0),
-		parse_amp_single(Data1, DecodedKVs ++ [{list_to_atom(binary_to_list(Key)), Val}])
+		parse_amp_single(Data1, DecodedKVs ++ [{list_to_existing_atom(binary_to_list(Key)), Val}])
 	catch _:_ ->
 		error_logger:error_msg("bad_amp_raw: ~p~n", [Data]),
 		error
