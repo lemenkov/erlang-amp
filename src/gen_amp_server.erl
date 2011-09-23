@@ -95,49 +95,47 @@ handle_cast({accepted, Client}, State = #state{clients=Clients}) ->
 	error_logger:warning_msg("Socket ~p accepted at ~s:~p by ~p~n", [Client, inet_parse:ntoa(Ip), Port, self()]),
 	{noreply, State#state{clients = Clients ++ [{Client, <<>>}]}};
 
-handle_cast({amp, Amp, Client}, State = #state{clients=Clients, mod=Module, modstate=ModState}) ->
-	case amp:get_type(Amp) of
-		?ASK ->
-			[{?ASK, Tag} , {?COMMAND, Cmd} | Opts] = Amp,
-			try Module:Cmd(Opts, ModState) of
-				{noreply, NewState}->
-					error_logger:warning_msg("Got answer for ~p but noreply was thrown~n", [Amp]),
-					{noreply, State#state{modstate=NewState}};
-				{noreply_and_close, NewState} ->
-					error_logger:warning_msg("Got answer for ~p but noreply_and_close was thrown~n", [Amp]),
-					case proplists:is_defined(Client, Clients) of
-						true -> gen_tcp:close(Client);
-						_ -> ok
-					end,
-					{noreply, State#state{clients = proplists:delete(Client, Clients), modstate=NewState}};
-				{reply, Reply, NewState} ->
-					gen_tcp:send(Client, amp:encode([{'_answer', Tag}] ++ Reply)),
-					{noreply, State#state{modstate=NewState}};
-				{reply_and_close, Reply, NewState} ->
-					gen_tcp:send(Client, amp:encode([{'_answer', Tag}] ++ Reply)),
-					case proplists:is_defined(Client, Clients) of
-						true -> gen_tcp:close(Client);
-						_ -> ok
-					end,
-					{noreply, State#state{clients = proplists:delete(Client, Clients), modstate=NewState}};
-				{error, Error, NewState} ->
-					error_logger:error_msg("Got error:~p for ~p~n", [Error, Amp]),
-					gen_tcp:send(Client, amp:encode([{'_error', Tag}] ++ Error)),
-					{noreply, State#state{modstate=NewState}}
-			catch
-				ExceptionClass:ExceptionPattern ->
-					error_logger:error_msg("Got exception ~p:~p for ~p~n", [ExceptionClass, ExceptionPattern, Amp]),
-					gen_tcp:send(Client, amp:encode([{'_error', Tag}] ++ [{exception, list_to_binary(atom_to_list(ExceptionClass))}])),
-					% TODO should we close socket here?
-					{noreply, State}
-			end;
-		?ERROR ->
-			% TODO what should we do in case then client returnes an error message?
-			{noreply, State};
-		?ANSWER ->
-			% TODO what should we do in case then client answers?
+handle_cast({amp, [{?ASK, Tag}, {?COMMAND, Cmd} | Opts] = Amp, Client}, #state{clients=Clients, mod=Module, modstate=ModState} = State) when is_atom(Cmd) ->
+	try Module:Cmd(Opts, ModState) of
+		{noreply, NewState}->
+			error_logger:warning_msg("Got answer for ~p but noreply was thrown~n", [Amp]),
+			{noreply, State#state{modstate=NewState}};
+		{noreply_and_close, NewState} ->
+			error_logger:warning_msg("Got answer for ~p but noreply_and_close was thrown~n", [Amp]),
+			case proplists:is_defined(Client, Clients) of
+				true -> gen_tcp:close(Client);
+				_ -> ok
+			end,
+			{noreply, State#state{clients = proplists:delete(Client, Clients), modstate=NewState}};
+		{reply, Reply, NewState} ->
+			gen_tcp:send(Client, amp:encode([{'_answer', Tag}] ++ Reply)),
+			{noreply, State#state{modstate=NewState}};
+		{reply_and_close, Reply, NewState} ->
+			gen_tcp:send(Client, amp:encode([{'_answer', Tag}] ++ Reply)),
+			case proplists:is_defined(Client, Clients) of
+				true -> gen_tcp:close(Client);
+				_ -> ok
+			end,
+			{noreply, State#state{clients = proplists:delete(Client, Clients), modstate=NewState}};
+		{error, Error, NewState} ->
+			error_logger:error_msg("Got error:~p for ~p~n", [Error, Amp]),
+			gen_tcp:send(Client, amp:encode([{'_error', Tag}] ++ Error)),
+			{noreply, State#state{modstate=NewState}}
+	catch
+		ExceptionClass:ExceptionPattern ->
+			error_logger:error_msg("Got exception ~p:~p for ~p~n", [ExceptionClass, ExceptionPattern, Amp]),
+			gen_tcp:send(Client, amp:encode([{'_error', Tag}] ++ [{exception, list_to_binary(atom_to_list(ExceptionClass))}])),
+			% TODO should we close socket here?
 			{noreply, State}
 	end;
+
+handle_cast({amp, [{?ERROR, Tag} | Opts] = Amp, Client}, #state{clients=Clients, mod=Module, modstate=ModState} = State) ->
+	% TODO what should we do in case then client returnes an error message?
+	{noreply, State};
+
+handle_cast({amp, [{?ANSWER, Tag} | Opts] = Amp, Client}, #state{clients=Clients, mod=Module, modstate=ModState} = State) ->
+	% TODO what should we do in case then client answers?
+	{noreply, State};
 
 handle_cast(Request, State = #state{mod=Module, modstate=ModState}) ->
 	case Module:handle_cast(Request, ModState) of

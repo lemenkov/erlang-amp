@@ -31,8 +31,6 @@
 -export([encode/1]).
 -export([decode/1]).
 
--export([get_type/1]).
-
 decode(Binary) when is_binary(Binary) ->
 	decode(Binary, []).
 
@@ -61,13 +59,6 @@ parse_amp_single(Data, DecodedKVs) when size(Data) > 1 ->
 			{list_to_existing_atom(binary_to_list(BinKey)), BinVal}
 	end,
 	parse_amp_single(Data1, DecodedKVs ++ [{Key, Val}]).
-
-get_type([{?ASK, _AmpTag} , {?COMMAND, _CmdName} | _RestPropList]) ->
-	?ASK;
-get_type([{?ERROR, _AmpTag} , {?COMMAND, _CmdName} | _RestPropList]) ->
-	?ERROR;
-get_type([{?ANSWER, _AmpTag} , {?COMMAND, _CmdName} | _RestPropList]) ->
-	?ANSWER.
 
 encode(Proplist) when is_list(Proplist) ->
 	encode(Proplist, <<>>).
