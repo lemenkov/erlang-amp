@@ -28,22 +28,23 @@
 
 -include("../include/amp.hrl").
 
+-export([decode/1]).
+
 -export([make_cmd/2]).
 -export([make_reply/2]).
 -export([make_error/2]).
--export([parse_amp/1]).
 -export([get_type/1]).
 -export([get_command/1]).
 
-parse_amp(Binary) when is_binary(Binary) ->
-	parse_amp(Binary, []).
+decode(Binary) when is_binary(Binary) ->
+	decode(Binary, []).
 
-parse_amp(Binary, DecodedAmps) ->
+decode(Binary, DecodedAmps) ->
 	case parse_amp_single(Binary, []) of
 		{amp, DecodedAmp, <<>>} ->
 			{amp, DecodedAmps ++ [DecodedAmp], <<>>};
 		{amp, DecodedAmp, Rest} ->
-			parse_amp(Rest, DecodedAmps ++ [DecodedAmp]);
+			decode(Rest, DecodedAmps ++ [DecodedAmp]);
 		error ->
 			{amp, DecodedAmps, Binary}
 	end.

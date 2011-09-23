@@ -150,7 +150,7 @@ handle_cast(Request, State = #state{mod=Module, modstate=ModState}) ->
 handle_info({tcp, Client, B}, State = #state{clients=Clients}) ->
 	inet:setopts(Client, [{active, once}, {packet, raw}, binary]),
 	PrevBytes = proplists:get_value(Client, Clients),
-	{amp, DecodedKVs, Rest} = amp:parse_amp(<<PrevBytes/binary, B/binary>>),
+	{amp, DecodedKVs, Rest} = amp:decode(<<PrevBytes/binary, B/binary>>),
 	lists:foreach(fun (Amp) -> gen_server:cast(self(), {amp, Amp, Client}) end, DecodedKVs),
 	{noreply, State#state{clients = proplists:delete(Client, Clients) ++ [{Client, Rest}]}};
 
