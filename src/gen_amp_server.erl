@@ -124,7 +124,7 @@ handle_cast({amp, [{?ASK, Tag}, {?COMMAND, Cmd} | Opts] = Amp, Client}, #state{c
 	catch
 		ExceptionClass:ExceptionPattern ->
 			error_logger:error_msg("Got exception ~p:~p for ~p~n", [ExceptionClass, ExceptionPattern, Amp]),
-			gen_tcp:send(Client, amp:encode([{'_error', Tag}] ++ [{exception, list_to_binary(atom_to_list(ExceptionClass))}])),
+			gen_tcp:send(Client, amp:encode([{'_error', Tag}] ++ [{ExceptionClass, ExceptionPattern}])),
 			% TODO should we close socket here?
 			{noreply, State}
 	end;
