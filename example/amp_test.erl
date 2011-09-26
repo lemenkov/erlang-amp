@@ -10,7 +10,7 @@
 -export([code_change/3]).
 
 -export([start_link/2]).
--export(['TestAmpRequest'/1]).
+-export(['TestAmpRequest'/2]).
 
 % amp_test:start_link({127,0,0,1}, 1234).
 start_link(Ip, Port) ->
