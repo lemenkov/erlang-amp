@@ -30,6 +30,7 @@
 
 -export([encode/1]).
 -export([decode/1]).
+-export([make_tag/0]).
 
 decode(Binary) when is_binary(Binary) ->
 	decode(Binary, []).
