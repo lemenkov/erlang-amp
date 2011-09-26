@@ -43,8 +43,8 @@ start_link(Ip, Port) when is_integer(Port) ->
 	gen_server:start_link(?MODULE, [Ip, Port], []).
 
 init([Ip, Port]) ->
-%	Opts = [{ip, Ip}, binary, {packet, 2}, {reuseaddr, true}, {keepalive, true}, {backlog, 30}, {active, false}],
-	Opts = [{ip, Ip}, binary, {packet, raw}, {reuseaddr, true}, {keepalive, true}, {backlog, 30}, {active, false}],
+	process_flag(trap_exit, true),
+	Opts = [{ip, Ip}, binary, {packet, 2}, {reuseaddr, true}, {keepalive, true}, {backlog, 30}, {active, false}],
 	case gen_tcp:listen(Port, Opts) of
 		{ok, Socket} ->
 			{ok, Ref} = prim_inet:async_accept(Socket, -1),
@@ -65,10 +65,10 @@ handle_info({inet_async, ListSock, Ref, {ok, CliSocket}}, #state{listener=ListSo
 		{error, Reason} -> exit({set_sockopt, Reason})
 	end,
 
-	gen_tcp:controlling_process(CliSocket, whereis(gen_amp_server)),
-%	inet:setopts(CliSocket, [{active, once}, {packet, 2}, binary]),
-	inet:setopts(CliSocket, [{active, once}, {packet, raw}, binary]),
-	gen_server:cast(gen_amp_server, {accepted, CliSocket}),
+	inet:setopts(CliSocket, [{active, once}, {packet, 2}, binary]),
+	% FIXME use supervisor
+	{ok, Pid} = gen_amp_fsm:start_link(CliSocket),
+	gen_tcp:controlling_process(CliSocket, Pid),
 
 	case prim_inet:async_accept(ListSock, -1) of
 		{ok, NewRef} -> ok;

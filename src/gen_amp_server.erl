@@ -57,8 +57,7 @@ behaviour_info(_) ->
 
 -record(state, {
 	mod,
-	modstate,
-	clients = []
+	modstate
 }).
 
 %%%%%%%%%%%%%%%%%%
@@ -90,50 +89,39 @@ handle_call(Request, From, State = #state{mod=Module, modstate=ModState}) ->
 			{stop, Reason, Reply, State#state{modstate=NewModState}}
 	 end.
 
-handle_cast({accepted, Client}, State = #state{clients=Clients}) ->
-	{ok, {Ip, Port}} = inet:peername(Client),
-	error_logger:warning_msg("Socket ~p accepted at ~s:~p by ~p~n", [Client, inet_parse:ntoa(Ip), Port, self()]),
-	{noreply, State#state{clients = Clients ++ [{Client, <<>>}]}};
-
-handle_cast({amp, [{?ASK, Tag}, {?COMMAND, Cmd} | Opts] = Amp, Client}, #state{clients=Clients, mod=Module, modstate=ModState} = State) when is_atom(Cmd) ->
+handle_cast({amp, [{?ASK, Tag}, {?COMMAND, Cmd} | Opts] = Amp, Client}, #state{mod=Module, modstate=ModState} = State) when is_atom(Cmd) ->
 	try Module:Cmd(Opts, ModState) of
 		{noreply, NewState}->
 			error_logger:warning_msg("Got answer for ~p but noreply was thrown~n", [Amp]),
 			{noreply, State#state{modstate=NewState}};
 		{noreply_and_close, NewState} ->
 			error_logger:warning_msg("Got answer for ~p but noreply_and_close was thrown~n", [Amp]),
-			case proplists:is_defined(Client, Clients) of
-				true -> gen_tcp:close(Client);
-				_ -> ok
-			end,
-			{noreply, State#state{clients = proplists:delete(Client, Clients), modstate=NewState}};
+			gen_fsm:send_all_state_event(Client, close),
+			{noreply, State#state{modstate=NewState}};
 		{reply, Reply, NewState} ->
-			gen_tcp:send(Client, amp:encode([{'_answer', Tag}] ++ Reply)),
+			gen_fsm:send_all_state_event(Client, {reply, [{'_answer', Tag}] ++ Reply}),
 			{noreply, State#state{modstate=NewState}};
 		{reply_and_close, Reply, NewState} ->
-			gen_tcp:send(Client, amp:encode([{'_answer', Tag}] ++ Reply)),
-			case proplists:is_defined(Client, Clients) of
-				true -> gen_tcp:close(Client);
-				_ -> ok
-			end,
-			{noreply, State#state{clients = proplists:delete(Client, Clients), modstate=NewState}};
+			gen_fsm:send_all_state_event(Client, {reply, [{'_answer', Tag}] ++ Reply}),
+			gen_fsm:send_all_state_event(Client, close),
+			{noreply, State#state{modstate=NewState}};
 		{error, Error, NewState} ->
 			error_logger:error_msg("Got error:~p for ~p~n", [Error, Amp]),
-			gen_tcp:send(Client, amp:encode([{'_error', Tag}] ++ Error)),
+			gen_fsm:send_all_state_event(Client, {reply, [{'_error', Tag}] ++ Error}),
 			{noreply, State#state{modstate=NewState}}
 	catch
 		ExceptionClass:ExceptionPattern ->
 			error_logger:error_msg("Got exception ~p:~p for ~p~n", [ExceptionClass, ExceptionPattern, Amp]),
-			gen_tcp:send(Client, amp:encode([{'_error', Tag}] ++ [{ExceptionClass, ExceptionPattern}])),
+			gen_fsm:send_all_state_event(Client, {reply, [{'_error', Tag}] ++ [{ExceptionClass, ExceptionPattern}]}),
 			% TODO should we close socket here?
 			{noreply, State}
 	end;
 
-handle_cast({amp, [{?ERROR, Tag} | Opts] = Amp, Client}, #state{clients=Clients, mod=Module, modstate=ModState} = State) ->
+handle_cast({amp, [{?ERROR, _Tag} | _Opts] = _Amp, _Client}, #state{mod = _Module, modstate = _ModState} = State) ->
 	% TODO what should we do in case then client returnes an error message?
 	{noreply, State};
 
-handle_cast({amp, [{?ANSWER, Tag} | Opts] = Amp, Client}, #state{clients=Clients, mod=Module, modstate=ModState} = State) ->
+handle_cast({amp, [{?ANSWER, _Tag} | _Opts] = _Amp, _Client}, #state{mod = _Module, modstate = _ModState} = State) ->
 	% TODO what should we do in case then client answers?
 	{noreply, State};
 
@@ -145,20 +133,7 @@ handle_cast(Request, State = #state{mod=Module, modstate=ModState}) ->
 			{stop, Reason, State#state{modstate=NewModState}}
 	end.
 
-handle_info({tcp, Client, B}, State = #state{clients=Clients}) ->
-	inet:setopts(Client, [{active, once}, {packet, raw}, binary]),
-	PrevBytes = proplists:get_value(Client, Clients),
-	{amp, DecodedKVs, Rest} = amp:decode(<<PrevBytes/binary, B/binary>>),
-	lists:foreach(fun (Amp) -> gen_server:cast(self(), {amp, Amp, Client}) end, DecodedKVs),
-	{noreply, State#state{clients = proplists:delete(Client, Clients) ++ [{Client, Rest}]}};
-
-handle_info({tcp_closed, Client}, State = #state{clients=Clients}) ->
-	gen_tcp:close(Client),
-	error_logger:warning_msg("Client ~p closed connection~n", [Client]),
-	{noreply, State#state{clients = proplists:delete(Client, Clients)}};
-
 handle_info(Info, State = #state{mod=Module, modstate=ModState}) ->
-	io:format("INFO ~p~n", [Info]),
 	case Module:handle_info(Info, ModState) of
 		{noreply, NewModState} ->
 			{noreply, State#state{modstate=NewModState}};
@@ -166,9 +141,8 @@ handle_info(Info, State = #state{mod=Module, modstate=ModState}) ->
 			{stop, Reason, State#state{modstate=NewModState}}
 	end.
 
-terminate(Reason, _State = #state{clients=Clients, mod=Mod, modstate=ModState}) ->
+terminate(Reason, _State = #state{mod=Mod, modstate=ModState}) ->
 	error_logger:warning_msg("Terminated ~p due to ~p~n", [self(), Reason]),
-	lists:foreach(fun ({C, _B}) -> gen_tcp:close(C) end, Clients),
 	Mod:terminate(Reason, ModState).
 
 code_change(_OldVsn, State, _Extra) ->
